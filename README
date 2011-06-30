@@ -1,0 +1,7 @@
+# About
+
+Mex android remote is a small app which uses jmdns to automatically discover a running mex-web-remote serivce and to display it in an embeded browser. Requires android 2.2 or greater and a device which has multicast support in it's wifi drivers (this is 99% of android devices as of 2011).
+
+# Features
+
+* Auto discovery over mdns
