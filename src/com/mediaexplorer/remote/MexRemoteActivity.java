@@ -23,6 +23,7 @@ import java.io.IOException;
 import android.app.Activity;
 import android.os.Bundle;
 
+/* Jmdns licenced under Apache 2 please see NOTICE.TEXT in libs */
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceListener;
 import javax.jmdns.ServiceEvent;

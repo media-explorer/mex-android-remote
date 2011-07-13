@@ -5,3 +5,15 @@ Mex android remote is a small app which uses jmdns to automatically discover a r
 # Features
 
 * Auto discovery over mdns
+
+# Licences
+
+Mex android remote - a wraper and discovery tool for the mex web remote
+
+* GNU Lesser General Public Licence version 2.1
+Please see source header files for further information
+
+JmDNS - A library for Java Multicast Domain Name Server (JmDNS)
+
+* Apache Licence Version 2.0
+Please see NOTICE and LICENCE in the libs directory
