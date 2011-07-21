@@ -68,6 +68,10 @@ public class MexRemoteActivity extends Activity
 
         web_view = (WebView)findViewById (R.id.link_view);
         web_view.getSettings().setJavaScriptEnabled(true);
+        /* Future: setOverScrollMode is API level >8
+         * web_view.setOverScrollMode (OVER_SCROLL_NEVER);
+         */
+        web_view.setBackgroundColor (0);
 
         web_view.setWebViewClient(new WebViewClient()
              {
