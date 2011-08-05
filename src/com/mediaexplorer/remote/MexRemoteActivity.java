@@ -34,6 +34,7 @@ import android.app.ProgressDialog;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.HttpAuthHandler;
+import android.webkit.WebViewDatabase;
 
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -43,6 +44,16 @@ import android.content.DialogInterface;
 import android.text.method.PasswordTransformationMethod;
 import android.view.ViewGroup.LayoutParams;
 
+import android.widget.Toast;
+
+import android.util.Log;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.*;
+import org.apache.http.auth.*;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.client.CredentialsProvider;
 
 public class MexRemoteActivity extends Activity
 {
@@ -55,6 +66,8 @@ public class MexRemoteActivity extends Activity
     private ProgressDialog dialog;
     private TextView text_view;
     private WebView web_view;
+    private String target_host;
+    private int target_port;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -67,31 +80,95 @@ public class MexRemoteActivity extends Activity
         text_view = (TextView)findViewById (R.id.text);
 
         web_view = (WebView)findViewById (R.id.link_view);
-        web_view.getSettings().setJavaScriptEnabled(true);
+        web_view.getSettings().setJavaScriptEnabled(true);/*
         /* Future: setOverScrollMode is API level >8
          * web_view.setOverScrollMode (OVER_SCROLL_NEVER);
          */
+
         web_view.setBackgroundColor (0);
 
         web_view.setWebViewClient(new WebViewClient()
-             {
-                /* The mex remote can have authentication */
-                @Override
-                public void
-                onReceivedHttpAuthRequest (WebView         view,
-                                           final HttpAuthHandler handler,
-                                           String          host,
-                                           String          realm)
-                {
-                  String[] userpass =
-                    view.getHttpAuthUsernamePassword(host, realm);
+         {
+         /* for some reason we only get critical errors so an auth error
+          * is not handled here which is why there is some crack that test
+          * the connection with a special httpclient
+          */
+            @Override
+            public void
+            onReceivedHttpAuthRequest (final WebView         view,
+                                       final HttpAuthHandler handler,
+                                       final String          host,
+                                       final String          realm)
+            {
+              String[] userpass = new String[2];
 
-                  if (userpass != null && userpass.length == 2)
-                    {
-                      handler.proceed(userpass[0], userpass[1]);
-                    }
-                  else
-                    {
+              userpass = view.getHttpAuthUsernamePassword(host, realm);
+
+               HttpResponse response = null;
+               HttpGet httpget;
+               DefaultHttpClient httpclient;
+               String target_host;
+               int target_port;
+
+               target_host = MexRemoteActivity.this.target_host;
+               target_port = MexRemoteActivity.this.target_port;
+
+               /* We may get null from getHttpAuthUsernamePassword which will
+                * break the setCredentials so whitespace used instead to keep
+                * it happy */
+
+               Log.d ("debug",
+                      "using the set httpauth, testing using client");
+               try
+                 {
+                   if (userpass.length < 2)
+                     userpass = new String[2];
+                 }
+               catch (Exception e)
+                 {
+                   userpass = new String[2];
+                     userpass[0] = "none";
+                     userpass[1] = "none";
+                 }
+
+               Log.d ("debug", userpass[0]);
+               Log.d ("debug", userpass[1]);
+
+               Log.d ("debug", "trying: GET http://"+userpass[0]+":"+userpass[1]+"@"+target_host+":"+target_port+"/");
+
+                   httpclient = new DefaultHttpClient ();
+
+               httpget =
+                 new HttpGet("http://"+target_host+":"+target_port+"/");
+
+               httpclient.getCredentialsProvider().setCredentials(
+                      new AuthScope(target_host,
+                                    target_port),
+                      new UsernamePasswordCredentials(userpass[0],
+                                                      userpass[1]));
+
+               try
+                 {
+                   response = httpclient.execute (httpget);
+                 }
+               catch (IOException e)
+                 {
+                   Log.d ("debug", "problem executing the http get");
+                   e.printStackTrace();
+                 }
+
+               Log.d ("debug", Integer.toString(response.getStatusLine().getStatusCode()));
+               if (response.getStatusLine().getStatusCode() == 401)
+                 {
+/*                   view.setHttpAuthUsernamePassword (host, realm, null, null);
+
+                   userpass[0] = null;
+                   userpass[1] = null;
+                   userpass = null;*/
+
+                   Log.d ("debug", "userpass:"+ userpass); 
+                  
+                     Log.d ("debug", "userpass was null and the length was not 2"); 
                       /* login dialog box */
                       final AlertDialog.Builder logindialog;
                       final EditText user;
@@ -145,6 +222,8 @@ public class MexRemoteActivity extends Activity
                                                         .toString().trim();
                                                 String pvalue = pass.getText()
                                                         .toString().trim();
+                                                view.setHttpAuthUsernamePassword (host, realm, uvalue, pvalue);
+
                                                 handler.proceed(uvalue, pvalue);
                                             }
                                         });
@@ -158,9 +237,17 @@ public class MexRemoteActivity extends Activity
                                             }
                                         });
                       logindialog.show();
-                    } /* End login dialog box */
+                     /* End login dialog box */
+
                  }
-              });
+               else
+                 {
+                   handler.proceed(userpass[0], userpass[1]);
+                 }
+
+                } /* End onReceivedHttpAuthRequest */
+              }); /* End Override */
+
 
         /* run mdns to check for services don't block the ui*/
         handler.post (new Runnable ()
@@ -179,6 +266,8 @@ public class MexRemoteActivity extends Activity
         web_view.loadData(summary, "text/html", "utf-8");
 
       } /* end OnCreate */
+
+
 
     private void startMdns ()
       {
@@ -208,6 +297,11 @@ public class MexRemoteActivity extends Activity
                     /* TODO handle multiple mex web remotes and give an option
                      *  to select a particular one
                      */
+                    MexRemoteActivity.this.target_host =
+                                         event.getInfo().getInetAddress().getHostAddress();
+                    MexRemoteActivity.this.target_port =
+                                         event.getInfo().getPort();
+
                     remoteFound ("http:/" + event.getInfo().getInetAddresses()[0] + ":" + event.getInfo().getPort());
 
                   /* release asap to save battery */
@@ -243,9 +337,11 @@ public class MexRemoteActivity extends Activity
         handler.post (new Runnable()
           {
            public void run()
-            {
-              text_view.setText ("Media explorer remote:" + response);
-              web_view.loadUrl (response);
+             {
+             /* todo build list of mex targets and add selector */
+                Log.d ("debug", "response: "+response+"\ntarget host"+target_host+"\n port:"+target_port);
+               text_view.setText ("Media explorer remote:" + response);
+               web_view.loadUrl ("http://"+target_host+":"+target_port+"/");
              }
            });
 
@@ -263,15 +359,9 @@ public class MexRemoteActivity extends Activity
     @Override
     protected void onStop ()
       {
-        if (jmdns != null)
-          {
-            if (listener != null)
-              {
-                jmdns.removeServiceListener ("_http._tcp.local.", listener);
-                listener = null;
-              }
-            jmdns = null;
-          }
+        Log.d ("debug", "stop");
         super.onStop ();
+        System.exit (0);
     }
+
 }
