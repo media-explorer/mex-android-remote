@@ -68,6 +68,7 @@ public class MexRemoteActivity extends Activity
     private WebView web_view;
     private String target_host;
     private int target_port;
+    private String dbg;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -76,6 +77,7 @@ public class MexRemoteActivity extends Activity
         setContentView(R.layout.main);
 
         this.setTitle (R.string.app_name);
+        dbg = "MexWebremote";
 
         text_view = (TextView)findViewById (R.id.text);
 
@@ -104,39 +106,46 @@ public class MexRemoteActivity extends Activity
 
               userpass = view.getHttpAuthUsernamePassword(host, realm);
 
-               HttpResponse response = null;
-               HttpGet httpget;
-               DefaultHttpClient httpclient;
-               String target_host;
-               int target_port;
+              HttpResponse response = null;
+              HttpGet httpget;
+              DefaultHttpClient httpclient;
+              String target_host;
+              int target_port;
 
-               target_host = MexRemoteActivity.this.target_host;
-               target_port = MexRemoteActivity.this.target_port;
+              target_host = MexRemoteActivity.this.target_host;
+              target_port = MexRemoteActivity.this.target_port;
 
                /* We may get null from getHttpAuthUsernamePassword which will
-                * break the setCredentials so whitespace used instead to keep
-                * it happy */
+                * break the setCredentials so junk used instead to keep
+                * it happy.
+                */
 
-               Log.d ("debug",
-                      "using the set httpauth, testing using client");
+               Log.d (dbg,
+                      "using the set httpauth, testing auth using client");
                try
                  {
-                   if (userpass.length < 2)
-                     userpass = new String[2];
+                   if (userpass == null)
+                     {
+                       userpass = new String[2];
+                       userpass[0] = "none";
+                       userpass[1] = "none";
+                     }
                  }
                catch (Exception e)
                  {
                    userpass = new String[2];
-                     userpass[0] = "none";
-                     userpass[1] = "none";
+                   userpass[0] = "none";
+                   userpass[1] = "none";
                  }
 
-               Log.d ("debug", userpass[0]);
-               Log.d ("debug", userpass[1]);
+               /* Log.d ("debug",
+                *  "trying: GET http://"+userpass[0]+":"+userpass[1]+"@"+target_host+":"+target_port+"/");
+                */
+               /* We're going to test the authentication credentials that we
+                * have before using them so that we can act on the response.
+                */
 
-               Log.d ("debug", "trying: GET http://"+userpass[0]+":"+userpass[1]+"@"+target_host+":"+target_port+"/");
-
-                   httpclient = new DefaultHttpClient ();
+               httpclient = new DefaultHttpClient ();
 
                httpget =
                  new HttpGet("http://"+target_host+":"+target_port+"/");
@@ -153,103 +162,98 @@ public class MexRemoteActivity extends Activity
                  }
                catch (IOException e)
                  {
-                   Log.d ("debug", "problem executing the http get");
+                   Log.d (dbg, "Problem executing the http get");
                    e.printStackTrace();
                  }
 
-               Log.d ("debug", Integer.toString(response.getStatusLine().getStatusCode()));
+               Log.d (dbg, "HTTP reponse:"+Integer.toString(response.getStatusLine().getStatusCode()));
                if (response.getStatusLine().getStatusCode() == 401)
                  {
-/*                   view.setHttpAuthUsernamePassword (host, realm, null, null);
+                   /* We got Authentication failed (401) so ask user for u/p */
 
-                   userpass[0] = null;
-                   userpass[1] = null;
-                   userpass = null;*/
+                   /* login dialog box */
+                   final AlertDialog.Builder logindialog;
+                   final EditText user;
+                   final EditText pass;
 
-                   Log.d ("debug", "userpass:"+ userpass); 
-                  
-                     Log.d ("debug", "userpass was null and the length was not 2"); 
-                      /* login dialog box */
-                      final AlertDialog.Builder logindialog;
-                      final EditText user;
-                      final EditText pass;
+                   LinearLayout layout;
+                   LayoutParams params;
 
-                      LinearLayout layout;
-                      LayoutParams params;
+                   TextView label_username;
+                   TextView label_password;
 
-                      TextView label_username;
-                      TextView label_password;
+                   logindialog =
+                     new AlertDialog.Builder(MexRemoteActivity.this);
 
-                      logindialog =
-                              new AlertDialog.Builder(MexRemoteActivity.this);
+                   logindialog.setTitle("Mex Webremote login");
 
-                      logindialog.setTitle("Mex Webremote login");
+                   user = new EditText (MexRemoteActivity.this);
+                   pass = new EditText (MexRemoteActivity.this);
 
-                      user = new EditText (MexRemoteActivity.this);
-                      pass = new EditText (MexRemoteActivity.this);
+                   layout = new LinearLayout (MexRemoteActivity.this);
 
-                      layout = new LinearLayout (MexRemoteActivity.this);
+                   pass.setTransformationMethod (new PasswordTransformationMethod());
 
-                      pass.setTransformationMethod (new PasswordTransformationMethod());
+                   layout.setOrientation(LinearLayout.VERTICAL);
 
-                      layout.setOrientation(LinearLayout.VERTICAL);
+                   params = new LayoutParams (LayoutParams.FILL_PARENT,
+                                              LayoutParams.FILL_PARENT);
 
-                      params = new LayoutParams (LayoutParams.FILL_PARENT,
-                                                 LayoutParams.FILL_PARENT);
+                   layout.setLayoutParams(params);
+                   user.setLayoutParams(params);
+                   pass.setLayoutParams(params);
 
-                      layout.setLayoutParams(params);
-                      user.setLayoutParams(params);
-                      pass.setLayoutParams(params);
+                   label_username = new TextView (MexRemoteActivity.this);
+                   label_password = new TextView (MexRemoteActivity.this);
 
-                      label_username = new TextView (MexRemoteActivity.this);
-                      label_password = new TextView (MexRemoteActivity.this);
+                   label_username.setText("Username:");
+                   label_password.setText("Password:");
 
-                      label_username.setText("Username:");
-                      label_password.setText("Password:");
+                   layout.addView(label_username);
+                   layout.addView(user);
+                   layout.addView(label_password);
+                   layout.addView(pass);
+                   logindialog.setView(layout);
 
-                      layout.addView(label_username);
-                      layout.addView(user);
-                      layout.addView(label_password);
-                      layout.addView(pass);
-                      logindialog.setView(layout);
 
-                      logindialog.setPositiveButton("Login",
-                                        new DialogInterface.OnClickListener() {
-                                            public void onClick(
-                                                    DialogInterface dialog,
-                                                    int whichButton) {
-                                                String uvalue = user.getText()
-                                                        .toString().trim();
-                                                String pvalue = pass.getText()
-                                                        .toString().trim();
-                                                view.setHttpAuthUsernamePassword (host, realm, uvalue, pvalue);
-
-                                                handler.proceed(uvalue, pvalue);
+                   logindialog.setNegativeButton("Cancel",
+                            new DialogInterface.OnClickListener() {
+                                    public void onClick(
+                                                 DialogInterface dialog,
+                                                 int whichButton) {
+                                                 dialog.cancel();
                                             }
                                         });
 
-                      logindialog.setNegativeButton("Cancel",
-                                        new DialogInterface.OnClickListener() {
-                                            public void onClick(
-                                                    DialogInterface dialog,
-                                                    int whichButton) {
-                                                dialog.cancel();
-                                            }
-                                        });
+                   logindialog.setPositiveButton("Login",
+                          new DialogInterface.OnClickListener() {
+                                  public void onClick(
+                                                      DialogInterface dialog,
+                                                      int whichButton) {
+                                  String uvalue = user.getText()
+                                  .toString().trim();
+                                  String pvalue = pass.getText()
+                                  .toString().trim();
+                                  view.setHttpAuthUsernamePassword (host,
+                                                                    realm,
+                                                                    uvalue,
+                                                                    pvalue);
+
+                                  handler.proceed(uvalue, pvalue);
+                               }
+                            });
                       logindialog.show();
                      /* End login dialog box */
-
                  }
-               else
+               else /* We didn't get a 401 */
                  {
                    handler.proceed(userpass[0], userpass[1]);
                  }
+               } /* End onReceivedHttpAuthRequest */
+            }); /* End Override */
 
-                } /* End onReceivedHttpAuthRequest */
-              }); /* End Override */
 
-
-        /* run mdns to check for services don't block the ui*/
+        /* Run mdns to check for service in a "runnable" (async) */
         handler.post (new Runnable ()
                       {
                       public void run()
@@ -267,16 +271,14 @@ public class MexRemoteActivity extends Activity
 
       } /* end OnCreate */
 
-
-
     private void startMdns ()
       {
         android.net.wifi.WifiManager wifi;
 
         wifi = (android.net.wifi.WifiManager) getSystemService (android.content.Context.WIFI_SERVICE);
 
-        /* We need to specifically turn get multicast packets as usually
-         * they're disgarded, turn off soon as possible due to battery drain
+        /* We need to specifically switch on get multicast packets as usually
+         * they're disregarded, turn off soon as possible due to battery drain
          */
 
         lock = wifi.createMulticastLock ("mexremote");
@@ -291,22 +293,21 @@ public class MexRemoteActivity extends Activity
             public void serviceResolved (ServiceEvent event)
              {
                if (event.getName().startsWith ("Mex Webremote"))
-                  {
+                {
                     dialog.dismiss();
-
                     /* TODO handle multiple mex web remotes and give an option
-                     *  to select a particular one
+                     * to select a particular one.
                      */
                     MexRemoteActivity.this.target_host =
                                          event.getInfo().getInetAddress().getHostAddress();
                     MexRemoteActivity.this.target_port =
                                          event.getInfo().getPort();
 
-                    remoteFound ("http:/" + event.getInfo().getInetAddresses()[0] + ":" + event.getInfo().getPort());
+                    remoteFound ("http://"+MexRemoteActivity.this.target_host+":"+MexRemoteActivity.this.target_port+"/");
 
                   /* release asap to save battery */
                   lock.release ();
-                  }
+                }
              }
 
             @Override
@@ -339,7 +340,7 @@ public class MexRemoteActivity extends Activity
            public void run()
              {
              /* todo build list of mex targets and add selector */
-                Log.d ("debug", "response: "+response+"\ntarget host"+target_host+"\n port:"+target_port);
+               Log.d (dbg, "Response: "+response+"\ntarget host"+target_host+"\n port:"+target_port);
                text_view.setText ("Media explorer remote:" + response);
                web_view.loadUrl ("http://"+target_host+":"+target_port+"/");
              }
@@ -359,7 +360,7 @@ public class MexRemoteActivity extends Activity
     @Override
     protected void onStop ()
       {
-        Log.d ("debug", "stop");
+        Log.d (dbg, "Stop");
         super.onStop ();
         System.exit (0);
     }
